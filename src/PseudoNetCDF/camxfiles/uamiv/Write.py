@@ -59,11 +59,13 @@ def ncf2uamiv(ncffile, outpath):
     Parameters
     ----------
     ncffile : PseudoNetCDF-like object
-            Must be open and have all properties of a uamiv
+            Must be open and either (A) have all properties of a uamiv
             file as produced by PseudoNetCDF.camxfiles
             1) IOAPI conventions
             2) UAMIV specific properties: PLON PLAT IUTM CPROJ
                                             TLAT1 TLAT2 ISTAG
+            or (B) netcdf file created by CAMX7.x
+
     outpath : string
             path to create a uamiv file output
 
@@ -112,12 +114,17 @@ def ncf2uamiv(ncffile, outpath):
 
     emiss_hdr = np.zeros(shape=(1,), dtype=_emiss_hdr_fmt)
     emiss_hdr[0]['name'][:, :] = ' '
-    emiss_hdr[0]['name'][:, 0] = np.array(ncffile.NAME, dtype='>c')
+    try:
+        emiss_hdr[0]['name'][:, 0] = np.array(ncffile.NAME, dtype='>c')
+    except AttributeError:
+        emiss_hdr[0]['name'][:, 0] = np.array(ncffile.CAMx_NAME.ljust(10), dtype='>c')
     emiss_hdr[0]['note'][:, :] = ' '
     emiss_hdr[0]['note'][:, 0] = np.array(ncffile.NOTE, dtype='>c')
     # gdtype = getattr(ncffile, 'GDTYP', -999)
     emiss_hdr['itzon'][0] = ncffile.ITZON
-    nspec = len(ncffile.dimensions['VAR'])
+    # camx ncf format adds more variables than modelded spcies.  global att NVARS are more reliable
+    #nspec = len(ncffile.dimensions['VAR'])
+    nspec = ncffile.NVARS
     emiss_hdr['nspec'] = nspec
 
     NCOLS = len(ncffile.dimensions['COL'])
@@ -125,8 +132,12 @@ def ncf2uamiv(ncffile, outpath):
     NLAYS = len(ncffile.dimensions['LAY'])
     grid_hdr = np.zeros(shape=(1,), dtype=_grid_hdr_fmt)
     grid_hdr['SPAD'] = grid_hdr.itemsize - 8
-    grid_hdr['plon'] = ncffile.PLON
-    grid_hdr['plat'] = ncffile.PLAT
+    try:
+        grid_hdr['plon'] = ncffile.PLON
+        grid_hdr['plat'] = ncffile.PLAT
+    except AttributeError:
+        grid_hdr['plon'] = ncffile.XCENT
+        grid_hdr['plon'] = ncffile.YCENT
     grid_hdr['iutm'][0] = ncffile.IUTM
     grid_hdr['xorg'] = ncffile.XORIG
     grid_hdr['yorg'] = ncffile.YORIG
@@ -136,8 +147,13 @@ def ncf2uamiv(ncffile, outpath):
     grid_hdr['ny'] = NROWS
     grid_hdr['nz'] = NLAYS
     grid_hdr['iproj'] = ncffile.CPROJ
-    grid_hdr['tlat1'] = ncffile.TLAT1
-    grid_hdr['tlat2'] = ncffile.TLAT2
+    try:
+        grid_hdr['tlat1'] = ncffile.TLAT1
+        grid_hdr['tlat2'] = ncffile.TLAT2
+    except AttributeError:
+        grid_hdr['tlat1'] = ncffile.P_ALP
+        grid_hdr['tlat2'] = ncffile.P_BET
+
     grid_hdr['istag'] = ncffile.ISTAG
     grid_hdr['rdum5'] = 0.
     grid_hdr['EPAD'] = grid_hdr.itemsize - 8
