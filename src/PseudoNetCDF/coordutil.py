@@ -581,7 +581,23 @@ def getproj4_from_cf_var(gridmapping, withgrid=False):
             warn('Currently not using:' + str(pk) + ' ' + str(pv))
 
     # repr is required to prevent rounding of numpy array values
-    mapstr = ' '.join(['+%s=%s' % (k, v if isinstance(v, str) else repr(v))
+    #
+    # 2025-05-09
+    # repr occasionaly returns "np.float64(1.0)" instead of 1.0, causing trouble in proj4 expression
+    #
+    # it is not clear if using str leads to loss of sig digits in recent versions of numpy
+    #
+    # >>> import numpy as np
+    # >>> x = np.float128(1) / np.float128(3)
+    # >>> repr(x)
+    # "np.longdouble('0.33333333333333333334')"
+    # >>> str(x)
+    # '0.33333333333333333334'
+    # >>>
+    #
+    # so, str() could be better than repr(), i assume
+    #
+    mapstr = ' '.join(['+%s=%s' % (k, v if isinstance(v, str) else str(v))
                        for k, v in mapstr_bits.items()])
     return mapstr
 
